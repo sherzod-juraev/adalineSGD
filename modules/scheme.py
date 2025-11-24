@@ -1,0 +1,69 @@
+from pydantic import BaseModel, field_validator, model_validator
+from fastapi import HTTPException, status
+from numpy import array, issubdtype, number, unique, integer, isnan
+
+
+class AdalineSGDIn(BaseModel):
+    model_config = {
+        'extra': 'forbid'
+    }
+
+    X: list[list[float]]
+    y: list[int]
+
+
+    @field_validator('X')
+    def verify_X(cls, value):
+        X = array(value)
+        if X.ndim != 2:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail='Must be a 2D matrix'
+            )
+        if isnan(X).any():
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail='There should be no data with NaN values.'
+            )
+        return X
+
+
+    @field_validator('y')
+    def verify_y(cls, value):
+        y = array(value)
+        if y.ndim != 1:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail='must be a vector'
+            )
+        if isnan(y).any():
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail='all target values must be exact integers'
+            )
+        y = unique(y)
+        if len(y) != 2:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail='2 classes should be specified'
+            )
+        return y
+
+
+    @model_validator(mode='after')
+    def verify_object(self):
+        if self.X.shape[0] != self.y.shape[0]:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail='The number of sample and target values must be equal.'
+            )
+
+
+class AdalineSGDOut(BaseModel):
+
+    fit: bool
+    w_: list[float]
+
+    @field_validator('w_', mode='before')
+    def convert_numpy(cls, value):
+        return value.tolist()
