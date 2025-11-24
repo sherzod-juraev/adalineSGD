@@ -1,6 +1,6 @@
 from pydantic import BaseModel, field_validator, model_validator
 from fastapi import HTTPException, status
-from numpy import array, issubdtype, number, unique, integer, isnan
+from numpy import array, unique, isnan
 
 
 class AdalineSGDIn(BaseModel):
@@ -41,8 +41,7 @@ class AdalineSGDIn(BaseModel):
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail='all target values must be exact integers'
             )
-        y = unique(y)
-        if len(y) != 2:
+        if len(unique(y)) != 2:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail='2 classes should be specified'
@@ -57,6 +56,7 @@ class AdalineSGDIn(BaseModel):
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail='The number of sample and target values must be equal.'
             )
+        return self
 
 
 class AdalineSGDOut(BaseModel):
@@ -64,6 +64,20 @@ class AdalineSGDOut(BaseModel):
     fit: bool
     w_: list[float]
 
-    @field_validator('w_', mode='before')
-    def convert_numpy(cls, value):
-        return value.tolist()
+
+class AdalineSGDPredict(BaseModel):
+    model_config = {
+        'extra': 'forbid'
+    }
+
+    X: list[float]
+
+    @field_validator('X')
+    def verify_X(cls, value):
+        X = array(value)
+        if X.ndim != 1:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail='Must be 1D matrix'
+            )
+        return X
