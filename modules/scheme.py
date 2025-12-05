@@ -70,14 +70,14 @@ class AdalineSGDPredict(BaseModel):
         'extra': 'forbid'
     }
 
-    X: list[float]
+    X: list[list]
 
     @field_validator('X')
     def verify_X(cls, value):
         X = array(value)
-        if X.ndim != 1:
+        if X.ndim != 2:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                detail='Must be 1D matrix'
+                detail='Must be 2D matrix'
             )
         return X
